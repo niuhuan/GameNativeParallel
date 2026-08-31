@@ -96,7 +96,7 @@ jobs:
           if [ ! -x "$SDKMANAGER" ]; then
             SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
           fi
-          yes | "$SDKMANAGER" --install "build-tools;34.0.0"
+          (yes || true) | "$SDKMANAGER" --install "build-tools;34.0.0"
 
       - name: Build release bundles
         working-directory: source
