@@ -112,6 +112,8 @@ jobs:
           UPSTREAM_TAG: ${{ needs.resolve.outputs.upstream_tag }}
         run: |
           set -euo pipefail
+          umask 077
+          trap 'rm -f parallel.keystore' EXIT
           test -n "$KEYSTORE"
           test -n "$KEY_ALIAS"
           test -n "$KEY_PASSWORD"
@@ -144,7 +146,7 @@ jobs:
             mv "$apk.signed" "$apk"
             "$build_tools_dir/apksigner" verify --verbose "$apk"
           done
-          rm parallel.keystore legacy.apks legacy-xr.apks
+          rm legacy.apks legacy-xr.apks
 
       - name: Upload signed APKs
         uses: actions/upload-artifact@v4
