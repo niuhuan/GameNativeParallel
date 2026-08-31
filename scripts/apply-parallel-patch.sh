@@ -92,5 +92,15 @@ replace_exact \
     'text = "GameNative",' \
     "text = \"$application_name\"," \
     2
+replace_exact \
+    "$source_root/app/src/test/java/app/gamenative/mods/NexusOAuthControllerTest.kt" \
+    'app.gamenative://oauth/callback' \
+    "$application_id://oauth/callback" \
+    13
+replace_exact \
+    "$source_root/app/src/test/java/app/gamenative/ui/screen/auth/NexusOAuthCallbackContractTest.kt" \
+    'app.gamenative://oauth/callback' \
+    "$application_id://oauth/callback" \
+    9
 
 echo "Applied Parallel identity patch to $source_root"
