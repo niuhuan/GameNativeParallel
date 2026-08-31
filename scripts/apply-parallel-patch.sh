@@ -96,11 +96,11 @@ replace_exact \
     "$source_root/app/src/test/java/app/gamenative/mods/NexusOAuthControllerTest.kt" \
     'app.gamenative://oauth/callback' \
     "$application_id://oauth/callback" \
-    13
+    12
 replace_exact \
     "$source_root/app/src/test/java/app/gamenative/ui/screen/auth/NexusOAuthCallbackContractTest.kt" \
     'app.gamenative://oauth/callback' \
     "$application_id://oauth/callback" \
-    9
+    6
 
 echo "Applied Parallel identity patch to $source_root"
