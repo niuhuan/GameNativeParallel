@@ -148,6 +148,7 @@ replace_exact \
                 "Ignoring JavaSteam asynchronous job failure from ${thread.name}",
                 throwable,
             )
+            saveCrashToFile(throwable)
             return
         }
 
