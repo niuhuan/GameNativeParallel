@@ -80,6 +80,83 @@ replace_exact \
     "android:scheme=\"$application_id\"" \
     1 \
     true
+
+# The Kotlin package intentionally remains app.gamenative, but private-data paths
+# must use the installed application's ID. Otherwise a Parallel build writes to
+# GameNative's sandbox, which Android denies.
+replace_exact \
+    "$source_root/app/src/main/java/com/winlator/core/WineUtils.java" \
+    'E:/data/data/app.gamenative/storage' \
+    "E:/data/data/$application_id/storage" \
+    1
+replace_exact \
+    "$source_root/app/src/main/java/com/winlator/core/WineUtils.java" \
+    '/app.gamenative/storage' \
+    "/$application_id/storage" \
+    1
+replace_exact \
+    "$source_root/app/src/main/java/com/winlator/core/DXVKHelper.java" \
+    '/data/data/app.gamenative/files/imagefs' \
+    "/data/data/$application_id/files/imagefs" \
+    1
+replace_exact \
+    "$source_root/app/src/main/java/com/winlator/xenvironment/components/BionicProgramLauncherComponent.java" \
+    '/data/data/app.gamenative/files/imagefs/tmp/gamepad' \
+    "/data/data/$application_id/files/imagefs/tmp/gamepad" \
+    2
+replace_exact \
+    "$source_root/app/src/main/java/com/winlator/container/Container.java" \
+    '/data/data/app.gamenative/files/imagefs/home/xuser/' \
+    "/data/data/$application_id/files/imagefs/home/xuser/" \
+    6
+replace_exact \
+    "$source_root/app/src/main/java/com/winlator/container/Container.java" \
+    'E:/data/data/app.gamenative/storage' \
+    "E:/data/data/$application_id/storage" \
+    1
+
+# JavaSteam can report a failed asynchronous job from its WebSocket worker after
+# the requesting download coroutine has already handled the failure. Do not let
+# that detached worker take down the entire Android process.
+replace_exact \
+    "$source_root/app/src/main/java/app/gamenative/CrashHandler.kt" \
+    'import android.content.Context' \
+    'import android.content.Context
+import `in`.dragonbra.javasteam.steam.steamclient.AsyncJobFailedException' \
+    1
+replace_exact \
+    "$source_root/app/src/main/java/app/gamenative/CrashHandler.kt" \
+    '    override fun uncaughtException(thread: Thread, throwable: Throwable) {
+        PrefManager.recentlyCrashed = true
+
+        saveCrashToFile(throwable)
+        defaultHandler?.uncaughtException(thread, throwable)
+    }' \
+    '    private fun isAsyncSteamJobFailure(throwable: Throwable): Boolean {
+        var current: Throwable? = throwable
+        while (current != null) {
+            if (current is AsyncJobFailedException) return true
+            current = current.cause
+        }
+        return false
+    }
+
+    override fun uncaughtException(thread: Thread, throwable: Throwable) {
+        if (isAsyncSteamJobFailure(throwable)) {
+            android.util.Log.w(
+                "CrashHandler",
+                "Ignoring JavaSteam asynchronous job failure from ${thread.name}",
+                throwable,
+            )
+            saveCrashToFile(throwable)
+            return
+        }
+
+        PrefManager.recentlyCrashed = true
+        saveCrashToFile(throwable)
+        defaultHandler?.uncaughtException(thread, throwable)
+    }' \
+    1
 replace_exact \
     "$source_root/app/src/main/java/app/gamenative/mods/NexusOAuthModels.kt" \
     'const val REDIRECT_URI = "app.gamenative://oauth/callback"' \
