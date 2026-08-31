@@ -15,18 +15,25 @@ replace_exact() {
     local from="$2"
     local to="$3"
     local expected_count="$4"
+    local optional="${5:-false}"
 
-    [[ -f "$file" ]] || fail "missing required file: $file"
+    if [[ ! -f "$file" ]]; then
+        [[ "$optional" == "true" ]] && return
+        fail "missing required file: $file"
+    fi
 
-    python3 - "$file" "$from" "$to" "$expected_count" <<'PY'
+    python3 - "$file" "$from" "$to" "$expected_count" "$optional" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
 old, new = sys.argv[2], sys.argv[3]
 expected = int(sys.argv[4])
+optional = sys.argv[5] == "true"
 contents = path.read_text(encoding="utf-8")
 count = contents.count(old)
+if count == 0 and optional:
+    raise SystemExit(0)
 if count != expected:
     raise SystemExit(
         f"Parallel patch error: expected {expected} occurrence(s) of {old!r} "
@@ -71,12 +78,14 @@ replace_exact \
     "$source_root/app/src/main/AndroidManifest.xml" \
     'android:scheme="app.gamenative"' \
     "android:scheme=\"$application_id\"" \
-    1
+    1 \
+    true
 replace_exact \
     "$source_root/app/src/main/java/app/gamenative/mods/NexusOAuthModels.kt" \
     'const val REDIRECT_URI = "app.gamenative://oauth/callback"' \
     "const val REDIRECT_URI = \"$application_id://oauth/callback\"" \
-    1
+    1 \
+    true
 replace_exact \
     "$source_root/app/src/main/java/app/gamenative/utils/IntentLaunchManager.kt" \
     'private const val ACTION_LAUNCH_GAME = "app.gamenative.LAUNCH_GAME"' \
@@ -96,11 +105,13 @@ replace_exact \
     "$source_root/app/src/test/java/app/gamenative/mods/NexusOAuthControllerTest.kt" \
     'app.gamenative://oauth/callback' \
     "$application_id://oauth/callback" \
-    12
+    12 \
+    true
 replace_exact \
     "$source_root/app/src/test/java/app/gamenative/ui/screen/auth/NexusOAuthCallbackContractTest.kt" \
     'app.gamenative://oauth/callback' \
     "$application_id://oauth/callback" \
-    6
+    6 \
+    true
 
 echo "Applied Parallel identity patch to $source_root"
