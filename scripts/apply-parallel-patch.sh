@@ -109,6 +109,11 @@ replace_exact \
     '/data/data/app.gamenative/files/imagefs/home/xuser/' \
     "/data/data/$application_id/files/imagefs/home/xuser/" \
     6
+replace_exact \
+    "$source_root/app/src/main/java/com/winlator/container/Container.java" \
+    'E:/data/data/app.gamenative/storage' \
+    "E:/data/data/$application_id/storage" \
+    1
 
 # JavaSteam can report a failed asynchronous job from its WebSocket worker after
 # the requesting download coroutine has already handled the failure. Do not let
@@ -123,7 +128,7 @@ replace_exact \
     "$source_root/app/src/main/java/app/gamenative/CrashHandler.kt" \
     '    override fun uncaughtException(thread: Thread, throwable: Throwable) {
         PrefManager.recentlyCrashed = true
- 
+
         saveCrashToFile(throwable)
         defaultHandler?.uncaughtException(thread, throwable)
     }' \
