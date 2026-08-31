@@ -1,0 +1,195 @@
+name: Build GameNative Parallel
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: Upstream release tag to build (leave blank for the latest stable release)
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      upstream_tag:
+        description: Upstream release tag to build (leave blank for the latest stable release)
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: parallel-release-${{ inputs.upstream_tag || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      upstream_tag: ${{ steps.upstream.outputs.tag }}
+      upstream_sha: ${{ steps.upstream.outputs.sha }}
+    steps:
+      - name: Resolve upstream release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_TOKEN || github.token }}
+          REQUESTED_TAG: ${{ inputs.upstream_tag }}
+          UPSTREAM_REPOSITORY: ${{ vars.UPSTREAM_REPOSITORY || 'utkarshdalal/GameNative' }}
+        run: |
+          set -euo pipefail
+          if [ -n "$REQUESTED_TAG" ]; then
+            tag="$REQUESTED_TAG"
+          else
+            tag="$(gh api "repos/$UPSTREAM_REPOSITORY/releases/latest" --jq '.tag_name')"
+          fi
+
+          case "$tag" in
+            *[!0-9A-Za-z._-]*|'') echo "Invalid upstream tag: $tag" >&2; exit 1 ;;
+          esac
+
+          sha="$(gh api "repos/$UPSTREAM_REPOSITORY/commits/$tag" --jq '.sha')"
+          printf 'tag=%s\nsha=%s\n' "$tag" "$sha" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve
+    runs-on: ubuntu-latest
+    environment: parallel-release
+    steps:
+      - name: Check out automation
+        uses: actions/checkout@v4
+        with:
+          path: automation
+
+      - name: Check out upstream release
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.UPSTREAM_REPOSITORY || 'utkarshdalal/GameNative' }}
+          ref: ${{ needs.resolve.outputs.upstream_tag }}
+          path: source
+          fetch-depth: 1
+
+      - name: Apply Parallel identity patch
+        env:
+          PARALLEL_APPLICATION_ID: ${{ vars.PARALLEL_APPLICATION_ID || 'app.gamenative.parallel' }}
+          PARALLEL_APP_NAME: ${{ vars.PARALLEL_APP_NAME || 'GameNative Parallel' }}
+        run: bash "$GITHUB_WORKSPACE/automation/scripts/apply-parallel-patch.sh" "$GITHUB_WORKSPACE/source"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: gradle
+          cache-dependency-path: source/**/*.gradle*
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+        with:
+          build-root-directory: source
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android SDK Build Tools
+        run: |
+          set -euo pipefail
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --install "build-tools;34.0.0"
+
+      - name: Build release bundles
+        working-directory: source
+        run: ./gradlew :app:bundleLegacyRelease :app:bundleLegacyXrRelease
+
+      - name: Extract and sign APKs
+        working-directory: source
+        env:
+          KEYSTORE: ${{ secrets.PARALLEL_KEYSTORE }}
+          KEY_ALIAS: ${{ secrets.PARALLEL_KEYSTORE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.PARALLEL_KEYSTORE_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.PARALLEL_KEYSTORE_STORE_PASSWORD }}
+          UPSTREAM_TAG: ${{ needs.resolve.outputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          test -n "$STORE_PASSWORD"
+
+          echo "$KEYSTORE" | base64 --decode > parallel.keystore
+          java -jar tools/bundletool-all-1.17.2.jar build-apks \
+            --bundle=app/build/outputs/bundle/legacyRelease/app-legacy-release.aab \
+            --output=legacy.apks \
+            --mode=universal
+          unzip -p legacy.apks universal.apk > "GameNative-Parallel-${UPSTREAM_TAG}.apk"
+          java -jar tools/bundletool-all-1.17.2.jar build-apks \
+            --bundle=app/build/outputs/bundle/legacyXrRelease/app-legacyXr-release.aab \
+            --output=legacy-xr.apks \
+            --mode=universal
+          unzip -p legacy-xr.apks universal.apk > "GameNative-Parallel-${UPSTREAM_TAG}-legacy-xr.apk"
+
+          build_tools_dir="${ANDROID_HOME}/build-tools/34.0.0"
+          if [ ! -d "$build_tools_dir" ]; then
+            build_tools_dir="${ANDROID_SDK_ROOT}/build-tools/34.0.0"
+          fi
+          for apk in GameNative-Parallel-"${UPSTREAM_TAG}"*.apk; do
+            "$build_tools_dir/apksigner" sign \
+              --ks parallel.keystore \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass "pass:$STORE_PASSWORD" \
+              --key-pass "pass:$KEY_PASSWORD" \
+              --out "$apk.signed" \
+              "$apk"
+            mv "$apk.signed" "$apk"
+            "$build_tools_dir/apksigner" verify --verbose "$apk"
+          done
+          rm parallel.keystore legacy.apks legacy-xr.apks
+
+      - name: Upload signed APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: parallel-apks-${{ needs.resolve.outputs.upstream_tag }}
+          path: |
+            source/GameNative-Parallel-${{ needs.resolve.outputs.upstream_tag }}.apk
+            source/GameNative-Parallel-${{ needs.resolve.outputs.upstream_tag }}-legacy-xr.apk
+          if-no-files-found: error
+
+  release:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download signed APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: parallel-apks-${{ needs.resolve.outputs.upstream_tag }}
+          path: release
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_REPOSITORY: ${{ vars.UPSTREAM_REPOSITORY || 'utkarshdalal/GameNative' }}
+          UPSTREAM_TAG: ${{ needs.resolve.outputs.upstream_tag }}
+          UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
+        run: |
+          set -euo pipefail
+          release_tag="parallel-${UPSTREAM_TAG}"
+          cat > release-notes.md <<EOF
+          Built from upstream [${UPSTREAM_REPOSITORY}@${UPSTREAM_TAG}](https://github.com/${UPSTREAM_REPOSITORY}/tree/${UPSTREAM_TAG}).
+
+          Upstream commit: [${UPSTREAM_SHA}](https://github.com/${UPSTREAM_REPOSITORY}/commit/${UPSTREAM_SHA})
+
+          ## Downloads
+          - \`GameNative-Parallel-${UPSTREAM_TAG}.apk\` — Standard build.
+          - \`GameNative-Parallel-${UPSTREAM_TAG}-legacy-xr.apk\` — XR build for Quest headsets.
+          EOF
+
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            gh release upload "$release_tag" release/*.apk --clobber
+            gh release edit "$release_tag" --title "GameNative Parallel ${UPSTREAM_TAG}" --notes-file release-notes.md
+          else
+            gh release create "$release_tag" release/*.apk \
+              --title "GameNative Parallel ${UPSTREAM_TAG}" \
+              --notes-file release-notes.md \
+              --target "$GITHUB_SHA"
+          fi

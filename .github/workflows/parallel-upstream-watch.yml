@@ -1,0 +1,43 @@
+name: Watch GameNative releases
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      upstream_tag: ${{ steps.release.outputs.tag }}
+      needs_build: ${{ steps.release.outputs.needs_build }}
+    steps:
+      - name: Find an unreleased upstream version
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_TOKEN || github.token }}
+          UPSTREAM_REPOSITORY: ${{ vars.UPSTREAM_REPOSITORY || 'utkarshdalal/GameNative' }}
+        run: |
+          set -euo pipefail
+          tag="$(gh api "repos/$UPSTREAM_REPOSITORY/releases/latest" --jq '.tag_name')"
+          case "$tag" in
+            *[!0-9A-Za-z._-]*|'') echo "Invalid upstream tag: $tag" >&2; exit 1 ;;
+          esac
+
+          if gh release view "parallel-$tag" >/dev/null 2>&1; then
+            needs_build=false
+          else
+            needs_build=true
+          fi
+          printf 'tag=%s\nneeds_build=%s\n' "$tag" "$needs_build" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.needs_build == 'true'
+    uses: ./.github/workflows/parallel-release.yml
+    with:
+      upstream_tag: ${{ needs.detect.outputs.upstream_tag }}
+    secrets: inherit
