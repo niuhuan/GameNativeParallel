@@ -89,6 +89,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Inject credentials
+        working-directory: source
+        run: |
+          cat <<EOF > local.properties
+          POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
+          STEAMGRIDDB_API_KEY=${{ secrets.STEAMGRIDDB_API_KEY }}
+          CLOUD_PROJECT_NUMBER=${{ secrets.CLOUD_PROJECT_NUMBER }}
+          EOF
+
       - name: Install Android SDK Build Tools
         run: |
           set -euo pipefail
