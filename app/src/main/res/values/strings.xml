@@ -130,6 +130,13 @@
     <string name="steam_collections_offline">Showing last synced collections. Connect to update.</string>
     <string name="steam_collections_clear">Clear</string>
     <string name="steam_collections_smart_unsupported">Only standard collections are shown. Smart collections aren\'t supported yet.</string>
+
+    <string name="curated_lists_title">Steam curated lists</string>
+    <string name="curated_lists_loading">Loading curated lists…</string>
+    <string name="curated_lists_offline">Using the saved list. Connect to update.</string>
+    <string name="curated_lists_clear">Clear</string>
+    <string name="curated_lists_empty">No curated lists available right now.</string>
+    <string name="curated_list_4_3_name">Does it 4:3?</string>
     <string name="default_user_name">User</string>
 
     <!-- Custom Games -->
@@ -1782,7 +1789,7 @@
     <string name="debug_offer_message">That session ended early. Run %1$s once more with debug logging and our AI will read the log and tell you what to change.</string>
     <string name="debug_offer_confirm">Start debug run</string>
     <string name="debug_prerun_title">Get AI help</string>
-    <string name="debug_prerun_message_1">Runs the game with debug logging and shares the log with our AI on Discord when you quit.</string>
+    <string name="debug_prerun_message_1">Runs the game with debug logging and shares the log with our AI on Discord when you quit. Run the game until you experience the issue.</string>
     <string name="debug_prerun_message_2">AI replies are for subscribers only.</string>
     <string name="debug_prerun_message_3">Anyone can share the report for human help.</string>
     <string name="diagnostics_share_title">Share diagnostics log</string>
