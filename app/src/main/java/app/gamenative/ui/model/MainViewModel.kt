@@ -9,6 +9,7 @@ import app.gamenative.BuildConfig
 import app.gamenative.PluviaApp
 import app.gamenative.PrefManager
 import app.gamenative.R
+import app.gamenative.data.BootAdRepository
 import app.gamenative.data.GameProcessInfo
 import app.gamenative.data.GameSource
 import app.gamenative.data.LibraryPlayHistory
@@ -27,6 +28,7 @@ import app.gamenative.service.amazon.AmazonService
 import app.gamenative.service.epic.EpicCloudSavesManager
 import app.gamenative.service.epic.EpicService
 import app.gamenative.service.gog.GOGService
+import app.gamenative.utils.ConversionTracker
 import app.gamenative.utils.CustomGameScanner
 import app.gamenative.ui.data.MainState
 import app.gamenative.ui.enums.ConnectionState
@@ -71,12 +73,23 @@ class MainViewModel @Inject constructor(
         private const val KEY_CURRENT_SCREEN_ROUTE = "current_screen_route"
         private const val MIN_WARM_PITCH_SESSION_MS = 7 * 60 * 1000L
         private const val WARM_PITCH_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000L
+        private const val SHORT_SESSION_MS = 90 * 1000L
+        private const val AI_DEBUG_OFFER_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000L
+        private const val BOOT_GAME_SEEN_GRACE_MS = 15_000L
+        private const val LOW_RATING_MAX = 3
+        private val FAILURE_TAGS = setOf("does_not_open", "no_graphics", "directx_error")
+        private const val BOOT_AD_REUSE_WINDOW_MS = 2 * 60 * 1000L
 
         var gamePlayedThisSession = false
             private set
     }
 
     private var gameSessionStartTime = 0L
+    private var bootAdShownAtMs = 0L
+    private var bootAdHiddenAtMs = 0L
+    private var bootAdDwellReported = false
+    private var bootAwaitingGameWindow = false
+    private var gameWindowSeen = false
     private var pendingWarmPitch: Pair<String, Boolean>? = null
 
     private fun warmPitchAllowed(): Boolean {
@@ -84,9 +97,13 @@ class MainViewModel @Inject constructor(
         return System.currentTimeMillis() - PrefManager.lastWarmPitchTime >= WARM_PITCH_COOLDOWN_MS
     }
 
-    fun onGameFeedbackResolved(rating: Int?) {
+    fun onGameFeedbackResolved(context: Context, rating: Int?, tags: Set<String> = emptySet()) {
         val (appId, sessionLongEnough) = pendingWarmPitch ?: return
         pendingWarmPitch = null
+        if (rating != null && (rating <= LOW_RATING_MAX || tags.any { it in FAILURE_TAGS })) {
+            viewModelScope.launch { offerAiDebugRun(context, appId, "low_rating") }
+            return
+        }
         val trigger = when {
             rating == 5 -> "five_star"
             rating == null && sessionLongEnough -> "long_session"
@@ -109,7 +126,7 @@ class MainViewModel @Inject constructor(
         data class ShowGameFeedbackDialog(val appId: String) : MainUiEvent()
         data class ShowMembershipPitch(val appId: String, val trigger: String) : MainUiEvent()
         data class ShowDebugReportDialog(val appId: String, val reportDir: String) : MainUiEvent()
-        data class ShowAiDebugOffer(val appId: String) : MainUiEvent()
+        data class ShowAiDebugOffer(val appId: String, val trigger: String) : MainUiEvent()
         data object ServiceReady : MainUiEvent()
     }
 
@@ -258,6 +275,7 @@ class MainViewModel @Inject constructor(
     private val onClearBootingSplash: (AndroidEvent.ClearBootingSplash) -> Unit = {
         bootingSplashTimeoutJob?.cancel()
         bootingSplashTimeoutJob = null
+        bootAwaitingGameWindow = false
         setShowBootingSplash(false)
     }
 
@@ -362,7 +380,54 @@ class MainViewModel @Inject constructor(
     }
 
     fun setShowBootingSplash(value: Boolean) {
-        _state.update { it.copy(showBootingSplash = value) }
+        val wasShowing = _state.value.showBootingSplash
+        if (value && !wasShowing) {
+            // The splash hides and re-shows between boot phases; a quick re-show is the same
+            // impression. Re-querying here would record extra shows and null the ad mid-boot
+            // once the daily cap is crossed, unmounting the sponsor card while the splash is up.
+            val held = _state.value.bootAd
+            val heldAllowed = held != null &&
+                (if (held.sponsored) PrefManager.bootScreenAdsEnabled else PrefManager.bootScreenRecommendationsEnabled)
+            val reuse = heldAllowed && System.currentTimeMillis() - bootAdHiddenAtMs < BOOT_AD_REUSE_WINDOW_MS
+            val ad = if (reuse) {
+                held
+            } else {
+                BootAdRepository.pickBootCard()?.also {
+                    bootAdShownAtMs = System.currentTimeMillis()
+                    // House recommendation cards carry no cap and report no ad dwell.
+                    bootAdDwellReported = !it.sponsored
+                    if (it.sponsored) BootAdRepository.recordShown(it.campaignId) else BootAdRepository.noteShown(it.campaignId)
+                }
+            }
+            Timber.tag("BootAdTrace").i("show: wasShowing=false held=%s reuse=%s ad=%s", held != null, reuse, ad?.campaignId)
+            PluviaApp.isBootingSplashShowing = true
+            _state.update { it.copy(showBootingSplash = true, bootAd = ad) }
+            // Resolve after publishing so an instant cache hit can't race the state write.
+            if (ad != null && !ad.sponsored && !reuse) {
+                viewModelScope.launch(Dispatchers.IO) {
+                    val upgraded = BootAdRepository.resolveHouseTrailer(ad) ?: return@launch
+                    _state.update { s -> if (s.bootAd?.campaignId == upgraded.campaignId) s.copy(bootAd = upgraded) else s }
+                }
+            }
+        } else if (!value && wasShowing) {
+            Timber.tag("BootAdTrace").i("hide: ad=%s", _state.value.bootAd?.campaignId)
+            bootAdHiddenAtMs = System.currentTimeMillis()
+            _state.value.bootAd?.let { ad ->
+                if (!bootAdDwellReported) {
+                    bootAdDwellReported = true
+                    ConversionTracker.bootAdShown(
+                        campaignId = ad.campaignId,
+                        dwellSeconds = (System.currentTimeMillis() - bootAdShownAtMs) / 1000L,
+                    )
+                }
+            }
+            // bootAd stays in state so the exit fade keeps rendering it; the next show replaces it.
+            PluviaApp.isBootingSplashShowing = false
+            _state.update { it.copy(showBootingSplash = false) }
+        } else {
+            PluviaApp.isBootingSplashShowing = value
+            _state.update { it.copy(showBootingSplash = value) }
+        }
     }
 
     fun setBootingSplashText(value: String) {
@@ -510,6 +575,7 @@ class MainViewModel @Inject constructor(
 
     fun launchApp(context: Context, appId: String) {
         gameSessionStartTime = System.currentTimeMillis()
+        gameWindowSeen = false
         gamePlayedThisSession = true
         PrefManager.hasAttemptedGameLaunch = true
         // Show booting splash before launching the app
@@ -521,18 +587,13 @@ class MainViewModel @Inject constructor(
                         lastPlayed = System.currentTimeMillis(),
                     ),
                 )
-                try {
-                    val container = ContainerUtils.getContainer(context, appId)
-                    if (container.getSessionMetadata("guest_self_exited", "false") == "true") {
-                        container.putSessionMetadata("guest_self_exited", "false")
-                        container.saveData()
-                    }
-                } catch (e: Exception) {
-                    Timber.w(e, "Failed to clear guest_self_exited for $appId")
-                }
             }
 
+            // A new launch is a new impression: never reuse the previous launch's ad.
+            bootAdHiddenAtMs = 0L
             setShowBootingSplash(true)
+            bootAwaitingGameWindow = _state.value.bootAd != null
+            if (bootAwaitingGameWindow) startBootGameExitWatch(context, appId)
             PluviaApp.events.emit(AndroidEvent.SetAllowedOrientation(PrefManager.allowedOrientation))
 
             val heroUrl = withContext(Dispatchers.IO) {
@@ -597,7 +658,7 @@ class MainViewModel @Inject constructor(
 
             if (app.gamenative.BuildConfig.XR_BUILD &&
                 container.isLaunchImmersiveMode() &&
-                app.gamenative.MainActivity.isMetaQuest()
+                app.gamenative.MainActivity.isHeadset(context)
             ) {
                 bootingSplashTimeoutJob?.cancel()
                 bootingSplashTimeoutJob = null
@@ -614,6 +675,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 Timber.tag("Exit").i("Exiting, getting feedback for appId: $appId")
+                bootAwaitingGameWindow = false
                 bootingSplashTimeoutJob?.cancel()
                 bootingSplashTimeoutJob = null
                 setShowBootingSplash(false)
@@ -703,27 +765,25 @@ class MainViewModel @Inject constructor(
     }
 
     private suspend fun maybeOfferAiDebugRun(context: Context, appId: String, sessionLengthMs: Long): Boolean {
+        val trigger = when {
+            !gameWindowSeen -> "no_window"
+            sessionLengthMs in 1 until SHORT_SESSION_MS -> "short_session"
+            else -> return false
+        }
+        return offerAiDebugRun(context, appId, trigger)
+    }
+
+    private suspend fun offerAiDebugRun(context: Context, appId: String, trigger: String): Boolean {
+        if (PrefManager.hideAiFeatures) return false
         return try {
             val container = ContainerUtils.getContainer(context, appId)
-            val guestSelfExited = container.getSessionMetadata("guest_self_exited", "false") == "true"
-            if (guestSelfExited) {
-                container.putSessionMetadata("guest_self_exited", "false")
-                container.saveData()
-            }
-            val firstLaunch = container.getExtra("discord_support_prompt_shown", "false") != "true"
-            val avgFps = container.getSessionMetadata("avg_fps", "").toFloatOrNull()
-            val crashSignal = guestSelfExited ||
-                (firstLaunch && sessionLengthMs in 1 until 180_000L) ||
-                (avgFps != null && avgFps < 0.01f)
-            if (!crashSignal) return false
+            val now = System.currentTimeMillis()
+            val lastShownForGame = container.getExtra("ai_debug_offer_last_shown", "0").toLongOrNull() ?: 0L
+            if (now - lastShownForGame < AI_DEBUG_OFFER_INTERVAL_MS) return false
 
-            val offeredBefore = container.getExtra("ai_debug_offer_shown", "false") == "true"
-            val cooldownElapsed = System.currentTimeMillis() - PrefManager.lastWarmPitchTime >= WARM_PITCH_COOLDOWN_MS
-            if (!(PrefManager.tipped || (cooldownElapsed && !offeredBefore))) return false
-
-            container.putExtra("ai_debug_offer_shown", "true")
+            container.putExtra("ai_debug_offer_last_shown", now.toString())
             container.saveData()
-            _uiEvent.send(MainUiEvent.ShowAiDebugOffer(appId))
+            _uiEvent.send(MainUiEvent.ShowAiDebugOffer(appId, trigger))
             true
         } catch (e: Exception) {
             Timber.w(e, "Failed to evaluate AI debug offer for $appId")
@@ -733,14 +793,16 @@ class MainViewModel @Inject constructor(
 
     private suspend fun handleExitCloudSync(context: Context, appId: String, gameId: Int) {
         val gameSource = ContainerUtils.extractGameSourceFromContainerId(appId)
-        if (ContainerUtils.isLocalSavesOnly(context, appId) || isOffline.value) {
+        // isOffline is derived from Steam's login state (see PluviaMain's startDestination / onClickPlay)
+        // and is meaningless for GOG/Epic, which check their own auth internally — only gate Steam on it.
+        if (ContainerUtils.isLocalSavesOnly(context, appId) || (gameSource == GameSource.STEAM && isOffline.value)) {
             Timber.tag("Exit").i("Local saves only or offline mode enabled for $appId — skipping cloud sync on exit")
             return
         }
 
         if (gameSource == GameSource.GOG) {
             Timber.tag("GOG").i("[Cloud Saves] GOG Game detected for $appId — syncing cloud saves after close")
-            viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 try {
                     Timber.tag("GOG").d("[Cloud Saves] Starting post-game upload sync for $appId")
                     val syncSuccess = app.gamenative.service.gog.GOGService.syncCloudSaves(
@@ -753,6 +815,8 @@ class MainViewModel @Inject constructor(
                     } else {
                         Timber.tag("GOG").w("[Cloud Saves] Upload sync failed for $appId")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Timber.tag("GOG").e(e, "[Cloud Saves] Exception during upload sync for $appId")
                 }
@@ -762,7 +826,7 @@ class MainViewModel @Inject constructor(
 
         if (gameSource == GameSource.EPIC) {
             Timber.tag("Epic").i("[Cloud Saves] Epic Game detected for $appId — syncing cloud saves after close")
-            viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 try {
                     Timber.tag("Epic").d("[Cloud Saves] Starting post-game upload sync for $gameId")
                     val syncSuccess = EpicCloudSavesManager.syncCloudSaves(
@@ -775,6 +839,8 @@ class MainViewModel @Inject constructor(
                     } else {
                         Timber.tag("Epic").w("[Cloud Saves] Upload sync failed for $gameId")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Timber.tag("Epic").e(e, "[Cloud Saves] Exception during upload sync for $gameId")
                 }
@@ -798,15 +864,42 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    private fun startBootGameExitWatch(context: Context, appId: String) = viewModelScope.launch(Dispatchers.IO) {
+        val exe = ContainerUtils.getContainer(context, appId).executablePath
+            .substringAfterLast('/').substringAfterLast('\\').lowercase()
+        if (!exe.endsWith(".exe")) return@launch
+        var seenAt = 0L
+        while (bootAwaitingGameWindow) {
+            delay(200)
+            val running = WineProcessSnapshotHelper.readFromProc().any { it.name.lowercase().endsWith(exe) }
+            if (running && seenAt == 0L) seenAt = System.currentTimeMillis()
+            if (seenAt != 0L && (!running || System.currentTimeMillis() - seenAt >= BOOT_GAME_SEEN_GRACE_MS)) {
+                PluviaApp.events.emit(AndroidEvent.ClearBootingSplash)
+                return@launch
+            }
+        }
+    }
+
     fun onWindowMapped(context: Context, window: Window, appId: String) {
         viewModelScope.launch {
-            // Hide the booting splash when a window is mapped
-            bootingSplashTimeoutJob?.cancel()
-            bootingSplashTimeoutJob = null
-            setShowBootingSplash(false)
-            // See onClearBootingSplash's kdoc — broadcast so MainActivity's own instance clears
-            // too when this call is actually running on ImmersiveXrActivity's separate instance.
-            PluviaApp.events.emit(AndroidEvent.ClearBootingSplash)
+            // Hide the booting splash when a window is mapped. While a boot card is showing,
+            // explorer's desktop window maps long before the game renders, so it must not
+            // end it; with no card (or outside boot) any window map hides it as before.
+            if (window.isApplicationWindow() && !WineProcessSnapshotHelper.isSystemProcessName(window.className)) {
+                gameWindowSeen = true
+            }
+            val windowClass = window.className.trim().lowercase()
+            if (bootAwaitingGameWindow && (windowClass.isEmpty() || windowClass == "explorer.exe")) {
+                Timber.tag("BootAdTrace").i("ignoring shell window map: %s", window.className)
+            } else {
+                bootAwaitingGameWindow = false
+                bootingSplashTimeoutJob?.cancel()
+                bootingSplashTimeoutJob = null
+                setShowBootingSplash(false)
+                // See onClearBootingSplash's kdoc — broadcast so MainActivity's own instance clears
+                // too when this call is actually running on ImmersiveXrActivity's separate instance.
+                PluviaApp.events.emit(AndroidEvent.ClearBootingSplash)
+            }
 
             if (ContainerUtils.extractGameSourceFromContainerId(appId) != GameSource.STEAM) {
                 return@launch
@@ -875,6 +968,7 @@ class MainViewModel @Inject constructor(
     fun onGameLaunchError(error: String) {
         viewModelScope.launch {
             // Hide the splash screen if it's still showing
+            bootAwaitingGameWindow = false
             bootingSplashTimeoutJob?.cancel()
             bootingSplashTimeoutJob = null
             setShowBootingSplash(false)
