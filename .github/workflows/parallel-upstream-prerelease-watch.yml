@@ -41,8 +41,7 @@ jobs:
   release:
     needs: detect
     if: needs.detect.outputs.needs_build == 'true'
-    uses: ./.github/workflows/parallel-release.yml
+    uses: ./.github/workflows/parallel-prerelease-release.yml
     with:
       upstream_tag: ${{ needs.detect.outputs.upstream_tag }}
-      prerelease: true
     secrets: inherit

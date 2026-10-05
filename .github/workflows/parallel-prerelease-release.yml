@@ -1,17 +1,17 @@
-name: Build stable GameNative Parallel
+name: Build prerelease GameNative Parallel
 
 on:
   workflow_dispatch:
     inputs:
       upstream_tag:
-        description: Upstream stable release tag to build (leave blank for the latest stable release)
-        required: false
+        description: Upstream prerelease tag to build (required)
+        required: true
         type: string
   workflow_call:
     inputs:
       upstream_tag:
-        description: Upstream stable release tag to build
-        required: false
+        description: Upstream prerelease tag to build
+        required: true
         type: string
 
 permissions:
@@ -22,5 +22,5 @@ jobs:
     uses: ./.github/workflows/parallel-build.yml
     with:
       upstream_tag: ${{ inputs.upstream_tag }}
-      prerelease: false
+      prerelease: true
     secrets: inherit
