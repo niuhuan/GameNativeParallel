@@ -7,12 +7,22 @@ on:
         description: Upstream release tag to build (leave blank for the latest stable release)
         required: false
         type: string
+      prerelease:
+        description: Publish the Parallel release as a prerelease
+        required: false
+        default: false
+        type: boolean
   workflow_call:
     inputs:
       upstream_tag:
         description: Upstream release tag to build (leave blank for the latest stable release)
         required: false
         type: string
+      prerelease:
+        description: Publish the Parallel release as a prerelease
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -186,9 +196,14 @@ jobs:
           UPSTREAM_REPOSITORY: ${{ vars.UPSTREAM_REPOSITORY || 'utkarshdalal/GameNative' }}
           UPSTREAM_TAG: ${{ needs.resolve.outputs.upstream_tag }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
+          RELEASE_PRERELEASE: ${{ inputs.prerelease }}
         run: |
           set -euo pipefail
           release_tag="parallel-${UPSTREAM_TAG}"
+          release_flags=()
+          if [[ "$RELEASE_PRERELEASE" == "true" ]]; then
+            release_flags+=(--prerelease)
+          fi
           cat > release-notes.md <<EOF
           Built from upstream [${UPSTREAM_REPOSITORY}@${UPSTREAM_TAG}](https://github.com/${UPSTREAM_REPOSITORY}/tree/${UPSTREAM_TAG}).
 
@@ -201,10 +216,11 @@ jobs:
 
           if gh release view "$release_tag" >/dev/null 2>&1; then
             gh release upload "$release_tag" release/*.apk --clobber
-            gh release edit "$release_tag" --title "GameNative Parallel ${UPSTREAM_TAG}" --notes-file release-notes.md
+            gh release edit "$release_tag" --title "GameNative Parallel ${UPSTREAM_TAG}" --notes-file release-notes.md "${release_flags[@]}"
           else
             gh release create "$release_tag" release/*.apk \
               --title "GameNative Parallel ${UPSTREAM_TAG}" \
               --notes-file release-notes.md \
+              "${release_flags[@]}" \
               --target "$GITHUB_SHA"
           fi
