@@ -35,7 +35,7 @@ public class Container {
     public static final String EXTERNAL_DISPLAY_MODE_HYBRID = "hybrid";
     public static final String DEFAULT_EXTERNAL_DISPLAY_MODE = EXTERNAL_DISPLAY_MODE_OFF;
 
-    public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact,deck_emu MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 MESA_VK_WSI_PRESENT_MODE=mailbox TU_DEBUG=noconform VKD3D_SHADER_MODEL=6_0 PULSE_LATENCY_MSEC=144";
+    public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 MESA_VK_WSI_PRESENT_MODE=mailbox TU_DEBUG=noconform VKD3D_SHADER_MODEL=6_0 PULSE_LATENCY_MSEC=144";
     public static final String DEFAULT_SCREEN_SIZE_16_9 = "1280x720";
     public static final String DEFAULT_SCREEN_SIZE_16_10 = "1280x800";
     public static final String DEFAULT_SCREEN_SIZE_4_3 = "1280x960";
@@ -72,6 +72,7 @@ public class Container {
     public static final String STEAM_TYPE_NORMAL = "normal";
     public static final String STEAM_TYPE_LIGHT = "light";
     public static final String STEAM_TYPE_ULTRALIGHT = "ultralight";
+    public static final String STEAM_TYPE_HEADLESS = "headless";
     public static final String GLIBC = "glibc";
     public static final String BIONIC = "bionic";
     public static final byte MAX_DRIVE_LETTERS = 8;
@@ -91,6 +92,8 @@ public class Container {
     private String wincomponents = DEFAULT_WINCOMPONENTS;
     private String audioDriver = DEFAULT_AUDIO_DRIVER;
     private boolean pulseaudioLowLatency = false;
+    /** Exposes the Android microphone to Wine/Proton as a capture device. Opt-in, off by default. */
+    private boolean micEnabled = false;
     private String drives = DEFAULT_DRIVES;
     private String wineVersion = WineInfo.MAIN_WINE_VERSION.identifier();
     private boolean showFPS;
@@ -154,7 +157,8 @@ public class Container {
     private boolean externalDisplaySwap = false;
     // Prefer DRI3 WSI path
     private boolean useDRI3 = true;
-    // Steam client type for selecting appropriate Box64 RC config: normal, light, ultralight
+    // Steam client flavour: headless (steamhost, no client UI) or the Valve GUI client under
+    // one of the Box64 RC configs (normal, light, ultralight)
     private String steamType = DefaultVersion.STEAM_TYPE;
 
     private boolean gstreamerWorkaround = false;
@@ -165,6 +169,8 @@ public class Container {
 
     private boolean steamOfflineMode = false;
 
+    private boolean loadMods = false;
+
     private boolean epicOfflineMode = false;
 
     private boolean useLegacyDRM = false;
@@ -174,8 +180,11 @@ public class Container {
     private String suspendPolicy = SUSPEND_POLICY_MANUAL;
 
     private boolean portraitMode = false;
+    private boolean portraitBelowCutout = false;
 
     private String containerVariant = DEFAULT_VARIANT;
+
+    private String basePrefix = "";
 
     public String getGraphicsDriverVersion() {
         return graphicsDriverVersion;
@@ -197,6 +206,9 @@ public class Container {
                 break;
             case STEAM_TYPE_ULTRALIGHT:
                 this.steamType = STEAM_TYPE_ULTRALIGHT;
+                break;
+            case STEAM_TYPE_HEADLESS:
+                this.steamType = STEAM_TYPE_HEADLESS;
                 break;
             default:
                 this.steamType = STEAM_TYPE_NORMAL;
@@ -317,6 +329,14 @@ public class Container {
         this.pulseaudioLowLatency = pulseaudioLowLatency;
     }
 
+    public boolean getMicEnabled() {
+        return micEnabled;
+    }
+
+    public void setMicEnabled(boolean micEnabled) {
+        this.micEnabled = micEnabled;
+    }
+
     public String getWinComponents() {
         return wincomponents;
     }
@@ -379,6 +399,11 @@ public class Container {
 
     public void setLaunchRealSteam(boolean launchRealSteam) {
         this.launchRealSteam = launchRealSteam;
+    }
+
+    /** Real Steam through the headless steamhost rather than the Valve GUI client. */
+    public boolean isLaunchHeadlessSteam() {
+        return launchRealSteam && STEAM_TYPE_HEADLESS.equals(steamType);
     }
 
     public boolean isLaunchBionicSteam() {
@@ -545,6 +570,10 @@ public class Container {
         this.extraData = extraData;
     }
 
+    public JSONObject getExtraData() {
+        return extraData;
+    }
+
     public boolean isGstreamerWorkaround() { // Add this getter
         return this.gstreamerWorkaround;
     }
@@ -559,6 +588,18 @@ public class Container {
 
     public String getContainerVariant() {
         return this.containerVariant;
+    }
+
+    public String getBasePrefix() {
+        return basePrefix != null ? basePrefix : "";
+    }
+
+    public void setBasePrefix(String basePrefix) {
+        this.basePrefix = basePrefix != null ? basePrefix : "";
+    }
+
+    public boolean isOverlay() {
+        return ContainerOverlay.isEligible(this) && !getBasePrefix().isEmpty();
     }
 
     public String getExtra(String name) {
@@ -722,6 +763,11 @@ public class Container {
     }
 
     public void saveData() {
+        saveDataChecked();
+    }
+
+    /** Checked persistence for callers that must not report success after a failed write. */
+    public boolean saveDataChecked() {
         try {
             JSONObject data = new JSONObject();
             data.put("id", id);
@@ -742,6 +788,7 @@ public class Container {
             if (!dxwrapperConfig.isEmpty()) data.put("dxwrapperConfig", dxwrapperConfig);
             data.put("audioDriver", audioDriver);
             data.put("pulseaudioLowLatency", pulseaudioLowLatency);
+            data.put("micEnabled", micEnabled);
             data.put("wincomponents", wincomponents);
             data.put("drives", drives);
             data.put("showFPS", showFPS);
@@ -795,6 +842,7 @@ public class Container {
             data.put("steamType", steamType);
             data.put("language", language);
             data.put("containerVariant", containerVariant);
+            if (!getBasePrefix().isEmpty()) data.put("basePrefix", basePrefix);
             data.put("emulator", emulator);
             data.put("fexcoreVersion", fexcoreVersion);
 
@@ -806,6 +854,7 @@ public class Container {
 
             // Steam offline mode setting
             data.put("steamOfflineMode", steamOfflineMode);
+            data.put("loadMods", loadMods);
 
             // Steam offline mode setting
             data.put("epicOfflineMode", epicOfflineMode);
@@ -819,12 +868,14 @@ public class Container {
             // Process suspend policy setting
             data.put("suspendPolicy", suspendPolicy);
             data.put("portraitMode", portraitMode);
+            data.put("portraitBelowCutout", portraitBelowCutout);
 
             if (!WineInfo.isMainWineVersion(wineVersion)) data.put("wineVersion", wineVersion);
-            FileUtils.writeString(getConfigFile(), data.toString());
+            return FileUtils.writeString(getConfigFile(), data.toString());
         }
         catch (JSONException e) {
             Log.e("Container", "Failed to save data: " + e);
+            return false;
         }
     }
 
@@ -968,6 +1019,9 @@ public class Container {
                 case "pulseaudioLowLatency" :
                     setPulseaudioLowLatency(data.getBoolean(key));
                     break;
+                case "micEnabled" :
+                    setMicEnabled(data.getBoolean(key));
+                    break;
                 case "desktopTheme" :
                     setDesktopTheme(data.getString(key));
                     break;
@@ -1046,6 +1100,9 @@ public class Container {
                 case "steamOfflineMode":
                     this.steamOfflineMode = data.getBoolean(key);
                     break;
+                case "loadMods":
+                    this.loadMods = data.getBoolean(key);
+                    break;
                 case "epicOfflineMode":
                     this.epicOfflineMode = data.getBoolean(key);
                     break;
@@ -1060,6 +1117,12 @@ public class Container {
                     break;
                 case "portraitMode":
                     this.portraitMode = data.getBoolean(key);
+                    break;
+                case "portraitBelowCutout":
+                    this.portraitBelowCutout = data.getBoolean(key);
+                    break;
+                case "basePrefix":
+                    setBasePrefix(data.optString(key, ""));
                     break;
             }
         }
@@ -1155,6 +1218,14 @@ public class Container {
         this.steamOfflineMode = steamOfflineMode;
     }
 
+    public boolean isLoadMods() {
+        return loadMods;
+    }
+
+    public void setLoadMods(boolean loadMods) {
+        this.loadMods = loadMods;
+    }
+
     public void setEpicOfflineMode(boolean epicOfflineMode) {
         this.epicOfflineMode = epicOfflineMode;
     }
@@ -1204,6 +1275,13 @@ public class Container {
         this.portraitMode = portraitMode;
     }
 
+    public boolean isPortraitBelowCutout() {
+        return portraitBelowCutout;
+    }
+
+    public void setPortraitBelowCutout(boolean portraitBelowCutout) {
+        this.portraitBelowCutout = portraitBelowCutout;
+    }
 
     public String getConfigSource() {
         return configSource;
