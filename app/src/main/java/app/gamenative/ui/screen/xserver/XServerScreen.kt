@@ -4152,6 +4152,7 @@ private fun setupXEnvironment(
         if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1")
         if (debugRun) {
             DebugRunParamsHolder.get(appId)?.let { DebugRunParams.applyToDebugEnv(envVars, appId, it) }
+            PerfSampler.armCpuProfile(DebugRunParamsHolder.get(appId)?.attach?.contains(DebugRunParams.ATTACH_CPU) == true)
         }
 
         val graphicsDriverConfig = KeyValueSet(container.getGraphicsDriverConfig())
@@ -5032,6 +5033,7 @@ private fun exit(
     frameRating?.let { rating ->
         container.putSessionMetadata("avg_fps", rating.avgFPS)
         container.putSessionMetadata("session_length_sec", rating.sessionLengthSec.toInt())
+        container.putSessionMetadata("total_frames", rating.totalFrames)
         container.saveData()
     }
 
@@ -6429,9 +6431,9 @@ private fun extractSteamFiles(
     }
     if (container.isLaunchHeadlessSteam && steamhostArchive.exists()) {
         if (headlessMarker?.takeIf { it.isFile }?.readText() == steamhostArchive.name) return
-        // Current Valve client tree (build 2026-01-29) + headless host as steam.exe.
+        // Current Valve client tree (build 1788652215, 2026-09-03) + headless host as steam.exe.
         clearClientBinaries()
-        Timber.i("Extracting ${steamhostArchive.name} (Valve client 2026-01-29 + headless steam.exe)")
+        Timber.i("Extracting ${steamhostArchive.name} (Valve client 1788652215 + headless steam.exe)")
         TarCompressorUtils.extract(
             TarCompressorUtils.Type.ZSTD,
             steamhostArchive,
