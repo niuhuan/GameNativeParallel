@@ -722,6 +722,10 @@
     <string name="achievement_position_bottom_left">左下</string>
     <string name="achievement_position_bottom_right">右下</string>
     <string name="launch_steam_client_description">推荐使用 Headless\nEA、Rockstar、Ubisoft 等启动器必需\n启用多人游戏并修复 DRM 和手柄问题</string>
+    <string name="steam_starting">正在启动 Steam…</string>
+    <string name="steam_logging_in">正在登录 Steam…</string>
+    <string name="steam_connecting">正在连接 Steam 服务器… 网络较慢时可能需要一分钟</string>
+    <string name="steam_retrying_login">正在重试登录 Steam…</string>
     <string name="launch_bionic_steam">启用实验性 Bionic Steam</string>
     <string name="allow_steam_updates">允许 Steam 更新</string>
     <string name="allow_steam_updates_description">将 Steam 更新至最新版本，会显著降低性能</string>
@@ -1064,7 +1068,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Pro 报告无需排队。</string>
     <string name="support_limit_title">已达到今天的合理使用限额</string>
-    <string name="support_upgrade_reason_required">AI 回复需要 GameNative 订阅。</string>
+    <string name="support_upgrade_reason_required">AI 回复需要 GameNative 订阅。如果你已在 Discord 或 Ko-fi 上订阅，请在设置中连接 Discord。</string>
     <string name="support_see_plans">查看方案</string>
     <string name="support_plan_basic_title">$5/月 · Basic</string>
     <string name="support_plan_basic_body">让你的游戏运行起来，或运行得更好。</string>

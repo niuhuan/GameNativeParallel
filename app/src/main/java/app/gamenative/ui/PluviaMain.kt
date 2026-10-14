@@ -69,6 +69,7 @@ import app.gamenative.events.AndroidEvent
 import app.gamenative.gamefixes.GameFixesRegistry
 import app.gamenative.service.ActiveGameRegistry
 import app.gamenative.service.SteamService
+import app.gamenative.service.download.SteamDownloadMode
 import app.gamenative.service.ea.EaCloudPreference
 import app.gamenative.service.ea.EaCloudSavesManager
 import app.gamenative.service.ea.EaLaunchSupport
@@ -78,7 +79,9 @@ import app.gamenative.service.rockstar.RockstarCloudSavesManager
 import app.gamenative.service.rockstar.RockstarLaunchSupport
 import app.gamenative.service.rockstar.RockstarHelperArchive
 import app.gamenative.service.rockstar.RockstarHelperDeployment
+import app.gamenative.service.rockstar.RockstarConstants
 import app.gamenative.service.rockstar.RockstarLoginGate
+import app.gamenative.service.rockstar.RockstarTitleMetadata
 import app.gamenative.service.rockstar.RockstarRuntime
 import app.gamenative.service.amazon.AmazonService
 import app.gamenative.utils.ConversionTracker
@@ -182,7 +185,7 @@ private var workshopUpdateDeferred: CompletableDeferred<Boolean>? = null
 private var steamUpdateDeferred: CompletableDeferred<Boolean>? = null
 
 /** Valve Windows client tree (build 1788652215, 2026-09-03) + headless steam.exe for Real Steam mode; see extractSteamFiles. */
-const val REAL_STEAM_CLIENT_ARCHIVE = "steamhost-20261005.tzst"
+const val REAL_STEAM_CLIENT_ARCHIVE = "steamhost-20261013.tzst"
 
 private fun NavHostController.navigateFromLoginIfNeeded(
     targetRoute: String,
@@ -2491,7 +2494,7 @@ fun preLaunchApp(
                     setMessageDialogState(MessageDialogState(false))
                     if (update) {
                         val dlcAppIds = SteamService.getInstalledApp(gameId)?.dlcDepots.orEmpty()
-                        SteamService.downloadApp(gameId, dlcAppIds, branch = branch, isUpdateOrVerify = true)
+                        SteamService.downloadApp(gameId, dlcAppIds, branch = branch, mode = SteamDownloadMode.UPDATE)
                     }
                     return@launch
                 }
@@ -2540,7 +2543,14 @@ fun preLaunchApp(
                 val rockstarGameDir = File(SteamService.getAppDirPath(gameId))
                 setLoadingMessage(context.getString(R.string.rockstar_preparing))
                 RockstarHelperArchive.downloadAndExtract(context) { setLoadingProgress(it) }
-                val signIn = RockstarLoginGate.ensureSignedIn(context, "launcher", gameId)
+                val activeTitle = RockstarTitleMetadata.find(rockstarGameDir)?.let { RockstarTitleMetadata.parse(it) }?.titleId
+                    ?.takeIf { it.matches(Regex("[a-z0-9_]{1,127}")) } ?: "launcher"
+                val activationMarker = File(
+                    RockstarHelperArchive.titleDir(rockstarGameDir),
+                    "${RockstarHelperDeployment.DIRECTORY}/${RockstarConstants.ACTIVATION_MARKER}",
+                )
+                val signIn = RockstarLoginGate.ensureSignedIn(context, activeTitle, gameId, activationMarker.isFile)
+                if (signIn.isSuccess && RockstarLoginGate.titleValidated) activationMarker.delete()
                 if (signIn.isFailure && RockstarLaunchSupport.hasUsableToken(File(SteamService.getAppDirPath(gameId)))) {
                     /* A token is already in place, so carry on rather than block a launch that works. */
                     Timber.tag("preLaunchApp").w("Rockstar sign-in did not complete; using the token already in the game directory")

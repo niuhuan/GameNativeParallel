@@ -695,6 +695,10 @@
     <string name="launch_dependency_failed_title">Ошибка загрузки зависимости запуска</string>
     <string name="launch_steam_client_beta">Запустить Steam Client</string>
     <string name="launch_steam_client_description">Рекомендуется Headless\nТребуется для EA, Rockstar, Ubisoft и других лаунчеров\nВключает мультиплеер и устраняет проблемы с DRM и контроллером</string>
+    <string name="steam_starting">Запуск Steam…</string>
+    <string name="steam_logging_in">Вход в Steam…</string>
+    <string name="steam_connecting">Подключение к серверам Steam… в медленной сети это может занять минуту</string>
+    <string name="steam_retrying_login">Повторная попытка входа в Steam…</string>
     <string name="launch_bionic_steam">Включить экспериментальный Bionic Steam</string>
     <string name="left_analog_stick">Левый аналоговый джойстик</string>
     <string name="left_stick">Левый джойстик</string>
@@ -1265,7 +1269,7 @@ https://gamenative.app
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Отчёты Pro проходят без очереди.</string>
     <string name="support_limit_title">Дневной лимит честного использования исчерпан</string>
-    <string name="support_upgrade_reason_required">Для ответов AI нужна подписка GameNative.</string>
+    <string name="support_upgrade_reason_required">Для ответов AI нужна подписка GameNative. Если вы уже оформили подписку в Discord или на Ko-fi, подключите Discord в настройках.</string>
     <string name="support_see_plans">Посмотреть планы</string>
     <string name="support_plan_basic_title">$5/месяц · Basic</string>
     <string name="support_plan_basic_body">Запустите свои игры или заставьте их работать лучше.</string>

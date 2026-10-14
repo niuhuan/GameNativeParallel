@@ -307,6 +307,12 @@
     <string name="mouse_speed_subtitle">Adjust pointer speed for touch movement and controls assigned to move the mouse. Shooter Mode uses its own look sensitivity.</string>
     <string name="reset_mouse_speed">Reset mouse speed</string>
     <string name="edit_physical_controller">Edit Physical Controller</string>
+    <string name="sc_edit_root">Steam Controller</string>
+    <string name="sc_edit_bindings">Buttons &amp; Bindings</string>
+    <string name="sc_edit_labels">Menu Labels</string>
+    <string name="sc_edit_layout">Overlay Layout</string>
+    <string name="sc_edit_keyboard">Keyboard Layout</string>
+    <string name="sc_edit_configs">Manage Configs</string>
     <string name="control_profiles">Control Profiles</string>
     <string name="control_profiles_empty">No control profiles are available.</string>
     <string name="control_profile_applied_sections">Settings applied: %1$d/%2$d</string>
@@ -927,6 +933,10 @@
     <string name="local_saves_only_description">Disable cloud save sync for this game and keep saves on device only</string>
     <string name="launch_steam_client_beta">Launch Steam Client</string>
     <string name="launch_steam_client_description">Headless is recommended\nRequired for EA, Rockstar, Ubisoft and other launchers\nEnables multiplayer and fixes DRM and controller issues</string>
+    <string name="steam_starting">Starting Steam…</string>
+    <string name="steam_logging_in">Logging in to Steam…</string>
+    <string name="steam_connecting">Connecting to Steam servers… this can take a minute on a slow network</string>
+    <string name="steam_retrying_login">Retrying Steam login…</string>
     <string name="launch_bionic_steam">Enable Experimental Bionic Steam</string>
     <string name="launch_bionic_steam_description">Enables online play, improves compatibility\nDoes not always work\nBack up your saves before trying this</string>
     <string name="steam_offline_mode">Steam Offline Mode</string>
@@ -1252,7 +1262,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Pro reports skip the queue.</string>
     <string name="support_limit_title">Daily fair-use limit reached</string>
-    <string name="support_upgrade_reason_required">AI replies need a GameNative subscription.</string>
+    <string name="support_upgrade_reason_required">AI replies need a GameNative subscription. If you already subscribe on Discord or Ko-fi, connect Discord in Settings.</string>
     <string name="support_see_plans">See plans</string>
     <string name="support_plan_basic_title">$5/month · Basic</string>
     <string name="support_plan_basic_body">Get your games running, or running better.</string>
@@ -1357,6 +1367,10 @@
     <string name="settings_interface_hide_statusbar_subtitle">Hide Android status bar in game list, settings, etc. App will restart when changed.</string>
     <string name="settings_interface_swap_face_buttons_title">Swap face buttons</string>
     <string name="settings_interface_swap_face_buttons_subtitle">Swap A↔B and X↔Y button icons</string>
+    <string name="settings_interface_steam_controller_title">Steam Controller (2026)</string>
+    <string name="settings_interface_steam_controller_subtitle">Connect a paired Steam Controller over Bluetooth when a game starts. Off unless you own one.</string>
+    <string name="settings_interface_steam_controller_denied">Steam Controller support needs the Bluetooth (Nearby devices) permission.</string>
+    <string name="settings_interface_steam_controller_denied_forever">Android won\'t ask again — turn on "Nearby devices" for GameNative in app permissions.</string>
     <string name="settings_interface_warn_before_exit_title">Warn before exiting</string>
     <string name="settings_interface_warn_before_exit_subtitle">Require double back press to exit — first press shows a warning</string>
     <string name="settings_interface_show_gamepad_hints_title">Show controller hints</string>

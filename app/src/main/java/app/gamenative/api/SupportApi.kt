@@ -39,7 +39,7 @@ object SupportApi {
     const val TEXT_MAX = 1800
     const val NOT_SIGNED_IN = "not_signed_in"
     const val FEATURES_HEADER = "x-gn-features"
-    const val FEATURES = "patches,components,fixes,registry,listing"
+    const val FEATURES = "patches,components,fixes,registry,listing,components2"
 
     const val KIND_USER = "user"
     const val KIND_AGENT = "agent"
@@ -459,6 +459,9 @@ object SupportApi {
                 cpuProfile.asRequestBody("application/json".toMediaType()),
             )
         }
+        DebugReportUtils.exitTraceBeside(logFile)?.let { trace ->
+            builder.addFormDataPart("exit_trace", DebugReportUtils.EXIT_TRACE_FILE, trace.asRequestBody("text/plain".toMediaType()))
+        }
         return builder
     }
 
@@ -672,7 +675,7 @@ object SupportApi {
         val builder = multipartBuilder(report, logFile, perfFile, logcatFile)
         builder.addFormDataPart("text", null, LateTextBody(text))
         val multipart = builder.build()
-        val expected = listOfNotNull(logFile, perfFile, logcatFile, DebugReportUtils.cpuProfileBeside(perfFile)).filter { it.exists() }.sumOf { it.length() }
+        val expected = listOfNotNull(logFile, perfFile, logcatFile, DebugReportUtils.cpuProfileBeside(perfFile), DebugReportUtils.exitTraceBeside(logFile)).filter { it.exists() }.sumOf { it.length() }
         val body = if (onProgress == null) multipart else ProgressBody(multipart, onProgress, expected)
         return call(
             name = "conversations/files",

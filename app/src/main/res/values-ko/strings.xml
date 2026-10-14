@@ -740,6 +740,10 @@
     <string name="achievement_position_bottom_left">좌측 하단</string>
     <string name="achievement_position_bottom_right">우측 하단</string>
     <string name="launch_steam_client_description">Headless 권장\nEA, Rockstar, Ubisoft 및 기타 런처에 필요\n멀티플레이를 활성화하고 DRM 및 컨트롤러 문제를 해결</string>
+    <string name="steam_starting">Steam 시작 중…</string>
+    <string name="steam_logging_in">Steam에 로그인하는 중…</string>
+    <string name="steam_connecting">Steam 서버에 연결하는 중… 느린 네트워크에서는 1분 정도 걸릴 수 있습니다</string>
+    <string name="steam_retrying_login">Steam 로그인을 다시 시도하는 중…</string>
     <string name="allow_steam_updates">Steam 업데이트 허용</string>
     <string name="allow_steam_updates_description">Steam을 최신 버전으로 업데이트합니다. 성능이 크게 저하될 수 있습니다.</string>
     <string name="steam_type">Steam 유형</string>
@@ -1079,7 +1083,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Pro 보고서는 대기열을 건너뜁니다.</string>
     <string name="support_limit_title">오늘의 공정 사용 한도 도달</string>
-    <string name="support_upgrade_reason_required">AI 답변에는 GameNative 구독이 필요합니다.</string>
+    <string name="support_upgrade_reason_required">AI 답변에는 GameNative 구독이 필요합니다. 이미 Discord 또는 Ko-fi에서 구독 중이라면 설정에서 Discord를 연결하세요.</string>
     <string name="support_see_plans">플랜 보기</string>
     <string name="support_plan_basic_title">$5/월 · Basic</string>
     <string name="support_plan_basic_body">게임을 실행되게, 또는 더 잘 실행되게.</string>

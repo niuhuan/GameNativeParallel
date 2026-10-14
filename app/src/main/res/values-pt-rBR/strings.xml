@@ -564,6 +564,10 @@
     <string name="achievement_position_bottom_left">Inferior esquerdo</string>
     <string name="achievement_position_bottom_right">Inferior direito</string>
     <string name="launch_steam_client_description">Headless é recomendado\nNecessário para EA, Rockstar, Ubisoft e outros launchers\nAtiva o multiplayer e corrige problemas de DRM e de controle</string>
+    <string name="steam_starting">Iniciando o Steam…</string>
+    <string name="steam_logging_in">Entrando no Steam…</string>
+    <string name="steam_connecting">Conectando aos servidores do Steam… isso pode levar um minuto em uma rede lenta</string>
+    <string name="steam_retrying_login">Tentando entrar no Steam novamente…</string>
     <string name="launch_bionic_steam">Ativar Bionic Steam experimental</string>
     <string name="allow_steam_updates">Permitir atualizações do Steam</string>
     <string name="allow_steam_updates_description">Atualiza o Steam para a versão mais recente. Reduz significativamente o desempenho.</string>
@@ -895,7 +899,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Os relatórios Pro furam a fila.</string>
     <string name="support_limit_title">Limite diário de uso justo atingido</string>
-    <string name="support_upgrade_reason_required">As respostas da AI exigem uma assinatura GameNative.</string>
+    <string name="support_upgrade_reason_required">As respostas da AI exigem uma assinatura GameNative. Se você já assina pelo Discord ou Ko-fi, conecte o Discord em Configurações.</string>
     <string name="support_see_plans">Ver planos</string>
     <string name="support_plan_basic_title">$5/mês · Basic</string>
     <string name="support_plan_basic_body">Faça seus jogos rodarem, ou rodarem melhor.</string>

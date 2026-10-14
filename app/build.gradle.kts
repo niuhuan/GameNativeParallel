@@ -64,7 +64,7 @@ android {
         buildConfigField("boolean", "XR_BUILD", "false")
         buildConfigField("boolean", "MODERN_XR", "false")
 
-        versionCode = 23
+        versionCode = 24
         versionName = "1.3.0"
 
         buildConfigField("boolean", "GOLD", "false")
@@ -449,6 +449,7 @@ dependencies {
     implementation(libs.libarchive.android)
     implementation(libs.zstd.jni) { artifact { type = "aar" } }
     implementation(libs.xz)
+    implementation(libs.jzlib)
 
     // Jetpack Compose
     implementation(platform(libs.androidx.compose.bom))

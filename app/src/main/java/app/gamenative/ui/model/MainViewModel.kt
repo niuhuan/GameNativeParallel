@@ -44,6 +44,7 @@ import app.gamenative.utils.WineProcessSnapshotHelper
 import com.materialkolor.PaletteStyle
 import com.winlator.xserver.Window
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.dragonbra.javasteam.steam.handlers.steamapps.AppProcessInfo
 import java.io.File
 import java.nio.file.Paths
@@ -52,6 +53,7 @@ import kotlin.io.path.name
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import app.gamenative.service.cloud.CloseSyncTracker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
@@ -67,6 +69,7 @@ import timber.log.Timber
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val savedStateHandle: SavedStateHandle,
     private val appTheme: IAppTheme,
     private val libraryPlayHistoryDao: LibraryPlayHistoryDao,
@@ -316,6 +319,16 @@ class MainViewModel @Inject constructor(
                 currentScreen = restoredScreen,
                 connectionState = initialConnectionState,
             )
+        }
+
+        // A debug run the previous process never finished: offer its recovered report once.
+        viewModelScope.launch {
+            DebugReportUtils.recovery?.let { recovered ->
+                recovered.await()
+                if (DebugReportUtils.recovery === recovered) DebugReportUtils.recovery = null
+            }
+            withContext(Dispatchers.IO) { DebugReportUtils.takePendingOffer(appContext) }
+                ?.let { _uiEvent.send(MainUiEvent.ShowDebugReportDialog(it)) }
         }
 
         // Register event handlers
@@ -676,6 +689,10 @@ class MainViewModel @Inject constructor(
             delay(100)
 
             val container = apiJob.await()
+            if (container.isLaunchHeadlessSteam && !bootAwaitingGameWindow) {
+                bootAwaitingGameWindow = true
+                startBootGameExitWatch(context, appId)
+            }
 
             if (app.gamenative.BuildConfig.XR_BUILD &&
                 container.isLaunchImmersiveMode() &&
@@ -693,6 +710,15 @@ class MainViewModel @Inject constructor(
     }
 
     fun exitSteamApp(context: Context, appId: String, onComplete: (() -> Unit)? = null) {
+        // the close-time sync uploads straight out of the install dir, so the store's delete joins this.
+        // reserved HERE, before the launch, so an uninstall started right after exit can't miss it.
+        val closeSyncKey = runCatching {
+            CloseSyncTracker.keyOf(
+                ContainerUtils.extractGameSourceFromContainerId(appId),
+                ContainerUtils.extractGameIdFromContainerId(appId),
+            )
+        }.getOrDefault(appId)
+        val closeSync = CloseSyncTracker.reserve(closeSyncKey)
         viewModelScope.launch {
             try {
                 Timber.tag("Exit").i("Exiting, getting feedback for appId: $appId")
@@ -719,6 +745,7 @@ class MainViewModel @Inject constructor(
                 }
 
                 handleExitCloudSync(context, appId, gameId)
+                closeSync.complete()
 
                 // Prompt user to save temporary container configuration if one was applied
                 if (hadTemporaryOverride) {
@@ -785,6 +812,10 @@ class MainViewModel @Inject constructor(
             } finally {
                 onComplete?.invoke()
             }
+        }.invokeOnCompletion {
+            // backstop: a launch cancelled before it runs, or one that throws before the sync, must not
+            // leave the delete waiting forever.
+            closeSync.complete()
         }
     }
 

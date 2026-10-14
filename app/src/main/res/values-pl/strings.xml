@@ -744,6 +744,10 @@
     <string name="achievement_position_bottom_left">Lewy dolny</string>
     <string name="achievement_position_bottom_right">Prawy dolny</string>
     <string name="launch_steam_client_description">Zalecany tryb Headless\nWymagany dla EA, Rockstar, Ubisoft i innych launcherów\nWłącza tryb wieloosobowy i naprawia problemy z DRM i kontrolerem</string>
+    <string name="steam_starting">Uruchamianie Steam…</string>
+    <string name="steam_logging_in">Logowanie do Steam…</string>
+    <string name="steam_connecting">Łączenie z serwerami Steam… w wolnej sieci może to potrwać minutę</string>
+    <string name="steam_retrying_login">Ponawianie logowania do Steam…</string>
     <string name="launch_bionic_steam">Włącz eksperymentalny Bionic Steam</string>
     <string name="allow_steam_updates">Zezwól na aktualizacje Steam</string>
     <string name="allow_steam_updates_description">Aktualizuje Steam do najnowszej wersji. Znacząco zmniejsza wydajność.</string>
@@ -1090,7 +1094,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Raporty Pro omijają kolejkę.</string>
     <string name="support_limit_title">Osiągnięto dzienny limit uczciwego użytkowania</string>
-    <string name="support_upgrade_reason_required">Odpowiedzi AI wymagają subskrypcji GameNative.</string>
+    <string name="support_upgrade_reason_required">Odpowiedzi AI wymagają subskrypcji GameNative. Jeśli masz już subskrypcję na Discordzie lub Ko-fi, połącz Discord w Ustawieniach.</string>
     <string name="support_see_plans">Zobacz plany</string>
     <string name="support_plan_basic_title">$5/miesiąc · Basic</string>
     <string name="support_plan_basic_body">Uruchom swoje gry albo spraw, by działały lepiej.</string>

@@ -770,6 +770,10 @@
     <string name="local_saves_only_description">Desactiva la sincronización de guardados en la nube para este juego y mantén las partidas solo en el dispositivo</string>
     <string name="launch_steam_client_beta">Iniciar cliente de Steam</string>
     <string name="launch_steam_client_description">Se recomienda Headless\nNecesario para EA, Rockstar, Ubisoft y otros lanzadores\nActiva el multijugador y corrige problemas de DRM y de mando</string>
+    <string name="steam_starting">Iniciando Steam…</string>
+    <string name="steam_logging_in">Iniciando sesión en Steam…</string>
+    <string name="steam_connecting">Conectando con los servidores de Steam… puede tardar un minuto en una red lenta</string>
+    <string name="steam_retrying_login">Reintentando el inicio de sesión en Steam…</string>
     <string name="launch_bionic_steam">Habilitar Bionic Steam experimental</string>
     <string name="steam_offline_mode">Modo sin conexión de Steam</string>
     <string name="steam_offline_mode_description">Inicia juegos de Steam en modo sin conexión.</string>
@@ -1087,7 +1091,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Los informes Pro se saltan la cola.</string>
     <string name="support_limit_title">Límite diario de uso razonable alcanzado</string>
-    <string name="support_upgrade_reason_required">Las respuestas de la AI requieren una suscripción a GameNative.</string>
+    <string name="support_upgrade_reason_required">Las respuestas de la AI requieren una suscripción a GameNative. Si ya estás suscrito en Discord o Ko-fi, conecta Discord en Ajustes.</string>
     <string name="support_see_plans">Ver planes</string>
     <string name="support_plan_basic_title">$5/mes · Basic</string>
     <string name="support_plan_basic_body">Haz que tus juegos funcionen, o que funcionen mejor.</string>

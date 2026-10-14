@@ -564,6 +564,10 @@
     <string name="achievement_position_bottom_left">Nederst til venstre</string>
     <string name="achievement_position_bottom_right">Nederst til højre</string>
     <string name="launch_steam_client_description">Headless anbefales\nPåkrævet til EA, Rockstar, Ubisoft og andre launchere\nAktiverer multiplayer og løser DRM- og controllerproblemer</string>
+    <string name="steam_starting">Starter Steam…</string>
+    <string name="steam_logging_in">Logger ind på Steam…</string>
+    <string name="steam_connecting">Forbinder til Steam-servere… dette kan tage et minut på et langsomt netværk</string>
+    <string name="steam_retrying_login">Prøver Steam-login igen…</string>
     <string name="launch_bionic_steam">Aktivér eksperimentel Bionic Steam</string>
     <string name="allow_steam_updates">Tillad Steam-opdateringer</string>
     <string name="allow_steam_updates_description">Opdaterer Steam til nyeste version. Reducerer ydelsen markant.</string>
@@ -895,7 +899,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Pro-rapporter springer køen over.</string>
     <string name="support_limit_title">Dagens fair-use-grænse er nået</string>
-    <string name="support_upgrade_reason_required">AI-svar kræver et GameNative-abonnement.</string>
+    <string name="support_upgrade_reason_required">AI-svar kræver et GameNative-abonnement. Hvis du allerede abonnerer via Discord eller Ko-fi, så forbind Discord i Indstillinger.</string>
     <string name="support_see_plans">Se planer</string>
     <string name="support_plan_basic_title">$5/måned · Basic</string>
     <string name="support_plan_basic_body">Få dine spil til at køre, eller til at køre bedre.</string>

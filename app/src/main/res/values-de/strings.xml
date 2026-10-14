@@ -712,6 +712,10 @@
     <string name="achievement_position_bottom_left">Unten links</string>
     <string name="achievement_position_bottom_right">Unten rechts</string>
     <string name="launch_steam_client_description">Headless wird empfohlen\nErforderlich für EA, Rockstar, Ubisoft und andere Launcher\nErmöglicht Multiplayer und behebt DRM- und Controller-Probleme</string>
+    <string name="steam_starting">Steam wird gestartet…</string>
+    <string name="steam_logging_in">Anmeldung bei Steam…</string>
+    <string name="steam_connecting">Verbindung zu den Steam-Servern wird hergestellt… das kann in einem langsamen Netzwerk eine Minute dauern</string>
+    <string name="steam_retrying_login">Steam-Anmeldung wird wiederholt…</string>
     <string name="launch_bionic_steam">Experimentelles Bionic Steam aktivieren</string>
     <string name="allow_steam_updates">Steam-Updates erlauben</string>
     <string name="allow_steam_updates_description">Aktualisiert Steam auf die neueste Version. Reduziert die Leistung spürbar.</string>
@@ -1046,7 +1050,7 @@
     </plurals>
     <string name="support_upgrade_reply_cap_pro_hint">Pro-Berichte überspringen die Warteschlange.</string>
     <string name="support_limit_title">Tägliche Fair-Use-Grenze erreicht</string>
-    <string name="support_upgrade_reason_required">AI-Antworten erfordern ein GameNative-Abo.</string>
+    <string name="support_upgrade_reason_required">AI-Antworten erfordern ein GameNative-Abo. Wenn du bereits über Discord oder Ko-fi abonnierst, verbinde Discord in den Einstellungen.</string>
     <string name="support_see_plans">Pläne ansehen</string>
     <string name="support_plan_basic_title">$5/Monat · Basic</string>
     <string name="support_plan_basic_body">Bring deine Spiele zum Laufen – oder lass sie besser laufen.</string>
